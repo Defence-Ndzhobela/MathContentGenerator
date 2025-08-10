@@ -53,6 +53,10 @@
       border-radius: 10px;
       white-space: pre-wrap;
       color: #1c1c1c;
+      overflow-wrap: break-word;
+      word-break: break-word;
+      max-height: 400px;        /* Limit max height */
+      overflow-y: auto;         /* Scroll if content is too tall */
     }
     .error-output {
       background: #ffe6e6;
@@ -131,7 +135,7 @@
     <label for="userPrompt">Ask a Math Question</label>
     <textarea id="userPrompt" placeholder="Type your question related to the selected topic..."></textarea>
 
-    <button class="button" id="askButton" onclick="askOpenAI()">Ask OpenAI</button>
+    <button class="button" id="askButton" onclick="askOpenAI()">Submit...</button>
 
     <button class="button" id="downloadPdfBtn" style="display:none; margin-top:15px;" onclick="downloadPdf()">Download Notes as PDF</button>
 
