@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Math Content Generator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-image: url('Images/Background.jpg');
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-attachment: fixed;
+      background-size: cover;
+      margin: 0;
+      padding: 20px;
+      color: #222;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: rgba(255,255,255,0.95);
+      padding: 25px;
+      border-radius: 12px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+    }
+    label {
+      font-weight: bold;
+      margin-top: 15px;
+      display: block;
+      color: #333;
+    }
+    select, textarea, input, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    textarea {
+      resize: vertical;
+      height: 100px;
+    }
+    .output {
+      background: #eef6ff;
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 10px;
+      white-space: pre-wrap;
+      color: #1c1c1c;
+    }
+    .error-output {
+      background: #ffe6e6;
+      border-left: 4px solid #ff4444;
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 10px;
+      color: #cc0000;
+    }
+    .warning-output {
+      background: #fff8e1;
+      border-left: 4px solid #ffa726;
+      margin-top: 25px;
+      padding: 20px;
+      border-radius: 10px;
+      color: #f57c00;
+    }
+    .button {
+      margin-top: 20px;
+      padding: 12px;
+      background: #007bff;
+      border: none;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+    }
+    .button:hover {
+      background: #0056b3;
+    }
+    .button:disabled {
+      background: #6c757d;
+      cursor: not-allowed;
+    }
+    .retry-button {
+      background: #28a745;
+      margin-top: 10px;
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+    .retry-button:hover {
+      background: #218838;
+    }
+  </style>
+</head>
+<body>
+  <h1>📘 Math Content Generator</h1>
+  <div class="container">
+    <label for="grade">Grade Level</label>
+    <select id="grade">
+      <option value="8">Grade 8</option>
+      <option value="9">Grade 9</option>
+      <option value="10">Grade 10</option>
+      <option value="11">Grade 11</option>
+      <option value="12">Grade 12</option>
+    </select>
+
+    <label for="topic">Topic</label>
+    <select id="topic">
+      <option value="Algebra">Algebra</option>
+      <option value="Geometry">Geometry</option>
+      <option value="Trigonometry">Trigonometry</option>
+      <option value="Calculus">Calculus</option>
+    </select>
+
+    <label for="type">Content Type</label>
+    <select id="type">
+      <option value="summary">Lesson Summary</option>
+      <option value="practice">Practice Problems</option>
+      <option value="step-by-step">Step-by-Step Solution</option>
+      <option value="concept">Concept Explanation</option>
+      <option value="quiz">Quiz Questions</option>
+    </select>
+
+    <label for="userPrompt">Ask a Math Question</label>
+    <textarea id="userPrompt" placeholder="Type your question related to the selected topic..."></textarea>
+
+    <button class="button" id="askButton" onclick="askOpenAI()">Ask OpenAI</button>
+
+    <button class="button" id="downloadPdfBtn" style="display:none; margin-top:15px;" onclick="downloadPdf()">Download Notes as PDF</button>
+
+    <div class="output" id="aiResponse" style="display: none;">
+      <h3>🤖 AI Response:</h3>
+      <div id="responseContent">Loading...</div>
+      <div id="performanceInfo" style="margin-top:10px; font-style: italic;"></div>
+    </div>
+
+    <label for="uploadFile" style="margin-top:30px;">Upload Document (optional)</label>
+    <input type="file" id="uploadFile" accept=".txt,.doc,.docx,.pdf" />
+    <textarea id="uploadedContent" placeholder="Uploaded content will appear here..." style="height:100px; margin-top:8px;"></textarea>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    let aiResultText = "";
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    async function askOpenAI() {
+      const grade = document.getElementById("grade").value;
+      const topic = document.getElementById("topic").value;
+      const contentType = document.getElementById("type").value;
+      let prompt = document.getElementById("userPrompt").value.trim();
+
+      // Use uploaded content if available
+      const uploadedContent = document.getElementById("uploadedContent").value.trim();
+      if (uploadedContent) {
+        prompt = uploadedContent;
+      }
+
+      if (!prompt) {
+        showError("Please enter a math question or upload content.", "validation");
+        return;
+      }
+
+      const button = document.getElementById("askButton");
+      button.disabled = true;
+      button.textContent = "Processing...";
+
+      document.getElementById("aiResponse").style.display = "block";
+      document.getElementById("aiResponse").className = "output";
+      document.getElementById("responseContent").innerHTML = "⏳ Generating answer...";
+      document.getElementById("performanceInfo").innerHTML = "";
+      document.getElementById("downloadPdfBtn").style.display = "none";
+
+      // Start client-side timer
+      const clientStart = performance.now();
+
+      try {
+        const response = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            grade,
+            topic,
+            contentType,
+            question: prompt
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          handleApiError(response.status, data);
+          return;
+        }
+
+        // client end time
+        const clientEnd = performance.now();
+
+        aiResultText = data.result || "No response received.";
+
+        let outputHtml = `<pre>${aiResultText}</pre>`;
+
+        document.getElementById("responseContent").innerHTML = outputHtml;
+
+        let perfHtml = "";
+        if (data.generationTimeMs) {
+          perfHtml += `⏱️ Server generation time: ${(data.generationTimeMs / 1000).toFixed(2)} seconds<br>`;
+        }
+        // also show client measured roundtrip
+        perfHtml += `⏱️ Round-trip (client measured): ${((clientEnd - clientStart) / 1000).toFixed(2)} seconds<br>`;
+
+        if (data.usage) {
+          perfHtml += `🧮 Tokens Used — Prompt: ${data.usage.prompt_tokens}, Completion: ${data.usage.completion_tokens}, Total: ${data.usage.total_tokens}`;
+        }
+        document.getElementById("performanceInfo").innerHTML = perfHtml;
+
+        document.getElementById("downloadPdfBtn").style.display = "inline-block";
+
+        retryCount = 0;
+
+      } catch (error) {
+        console.error("Network error:", error);
+        showError("❌ Connection Error", "Unable to connect to the server. Please check if the server is running and try again.", "network");
+      } finally {
+        button.disabled = false;
+        button.textContent = "Ask OpenAI";
+      }
+    }
+
+    function handleApiError(status, data) {
+      const errorType = data.type || "unknown";
+
+      switch (status) {
+        case 429:
+          if (errorType === "rate_limit_exceeded" || errorType === "insufficient_quota") {
+            showError(
+              "🚫 API Quota Exceeded",
+              "You've exceeded your OpenAI API usage limits. Please check your billing and usage limits.",
+              "quota",
+              false
+            );
+          } else {
+            showError("⏳ Too Many Requests", "Please wait a moment before trying again.", "rate_limit", true);
+          }
+          break;
+        case 401:
+          showError("🔑 Authentication Error", "Invalid API key. Please check your OpenAI API key.", "auth");
+          break;
+        case 402:
+          showError("💳 Payment Required", "Please add billing information to your OpenAI account.", "payment");
+          break;
+        default:
+          showError("⚠️ Server Error", data.error || "An unexpected error occurred. Please try again.", "server", true);
+      }
+    }
+
+    function showError(title, message, type = "general", showRetry = false) {
+      const responseDiv = document.getElementById("aiResponse");
+      const contentDiv = document.getElementById("responseContent");
+
+      responseDiv.style.display = "block";
+
+      if (type === "quota" || type === "auth" || type === "payment") {
+        responseDiv.className = "error-output";
+      } else if (type === "rate_limit") {
+        responseDiv.className = "warning-output";
+      } else {
+        responseDiv.className = "error-output";
+      }
+
+      let html = `<h3>${title}</h3><div>${message.replace(/\n/g,"<br>")}</div>`;
+
+      if (showRetry && retryCount < maxRetries) {
+        html += `<button class="button retry-button" onclick="retryRequest()">Retry (${retryCount + 1}/${maxRetries})</button>`;
+      }
+
+      contentDiv.innerHTML = html;
+    }
+
+    function retryRequest() {
+      retryCount++;
+      setTimeout(() => {
+        askOpenAI();
+      }, 1000 * retryCount);
+    }
+
+    document.getElementById("userPrompt").addEventListener('input', () => {
+      retryCount = 0;
+    });
+
+    // PDF download using jsPDF
+    function downloadPdf() {
+      if (!aiResultText) return;
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+
+      const textLines = doc.splitTextToSize(aiResultText, 180);
+      doc.text(textLines, 10, 10);
+
+      doc.save("math_notes.pdf");
+    }
+
+    // Handle file upload for txt only (simple preview)
+    document.getElementById("uploadFile").addEventListener("change", function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+
+      if (file.type === "application/pdf") {
+        alert("PDF upload preview not supported in-browser. Please copy-paste or upload a .txt file.");
+        this.value = "";
+        return;
+      }
+
+      if (file.name.endsWith(".doc") || file.name.endsWith(".docx")) {
+        alert("Word (.doc/.docx) preview not supported in-browser. Please copy-paste content into the box.");
+        this.value = "";
+        return;
+      }
+
+      reader.onload = function (e) {
+        document.getElementById("uploadedContent").value = e.target.result;
+      };
+
+      if (file.type === "text/plain" || file.name.endsWith(".txt")) {
+        reader.readAsText(file);
+      } else {
+        alert("Unsupported file type for preview. Use .txt or paste the content.");
+        this.value = "";
+      }
+    });
+  </script>
+</body>
+</html>

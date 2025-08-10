@@ -1,0 +1,7 @@
+{
+  "lesson_summary": "Generate a concise lesson summary for Grade {grade} on the topic {topic}. Use clear explanations and examples.",
+  "practice_problems": "Create 5 practice problems for Grade {grade} on the topic {topic}, including answers and step-by-step solutions.",
+  "step_by_step_solution": "Provide a detailed step-by-step solution for the following math question: {question}. Make it easy to understand.",
+  "concept_explanation": "Explain the key concept of {topic} for Grade {grade} in simple language, with examples.",
+  "quiz_questions": "Generate a short quiz of 3 questions with multiple choice answers on the topic {topic} for Grade {grade}."
+}
